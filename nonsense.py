@@ -7,7 +7,7 @@
 # Has quite good performance compared to last version. With the swedish bible
 # it needs about 20MB RAM and can create new sentences in ~0.1s with a prebuilt cache.
 #
-# Originally created 14 october, Håkan Waara (hwaara@gmail.com)
+# Initially created by Håkan Waara (hwaara@gmail.com) 14 October, 2012.
 #
 # Do what you want with it, but please give credit and contribute improvements!
 
