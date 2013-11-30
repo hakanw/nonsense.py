@@ -2,7 +2,9 @@
 # encoding: utf-8
 #
 # Reads input and generates nonsense based on it.
-# Usage: ./nonsense.py [--startword ett_bra_ord] big_file_of_text.txt
+#
+# Usage: 
+# ./nonsense.py [[--lookback N]|[--startword Hello]|[--min-length 20]|[--max-length 300]|--no-cache] input_file_with_lotsa_words.txt"
 #
 # Has quite good performance compared to last version. With the swedish bible
 # it needs about 20MB RAM and can create new sentences in ~0.1s with a prebuilt cache.
@@ -18,20 +20,19 @@ import random
 import re
 from decimal import Decimal
 
-PREFIX_WORD_LENGTH = 3
-
 def stderr(str):
     sys.stderr.write(str + "\n")
 
 class MarkovChain(object):
-    def __init__(self, input_file=None, no_cache=False):
+    def __init__(self, input_file=None, lookback=3, no_cache=False):
         self.WORD_RE = re.compile(r"([\w\.\!\,]+)", re.UNICODE)
         self.NO_REAL_WORD_RE = re.compile(r'^[\d\.\,\:\;]*$')
+        self.lookback = lookback
         
         if no_cache:
             self.conn = sqlite3.connect(":memory:")
         else:
-            self.conn = sqlite3.connect("%s.markovdb" % input_file)
+            self.conn = sqlite3.connect("%s.markovdb~%d" % (input_file, lookback))
         
         self.c = self.conn.cursor()
         
@@ -50,9 +51,7 @@ class MarkovChain(object):
     def init_database(self):
        self.c.execute("CREATE TABLE IF NOT EXISTS markov_chain (prefix text, suffix text, num_occurences integer DEFAULT 0, probability real, UNIQUE (prefix, suffix) )");
 
-    def generate_markov_chain(self, input):
-        global PREFIX_WORD_LENGTH
-        
+    def generate_markov_chain(self, input):        
         # interface to the db
         def add_suffix(prefix, suffix):
             self.c.execute("INSERT OR IGNORE INTO markov_chain (prefix, suffix) VALUES (?, ?)", (prefix, suffix))
@@ -79,7 +78,7 @@ class MarkovChain(object):
                     add_suffix("^", word)
                     
                 # generate new prefixes
-                if len(prev_prefixes) >= PREFIX_WORD_LENGTH:
+                if len(prev_prefixes) >= self.lookback:
                     # remove longest prefix and add current word to all of the remaining prefixes
                     prev_prefixes.pop(0)
                 
@@ -105,8 +104,6 @@ class MarkovChain(object):
                return row[0]
         
     def generate_sentence(self, start_word=None, min_words=5, max_length=140, prevent_recursion=False):
-        global PREFIX_WORD_LENGTH
-        
         first_word = None
         if start_word:
             first_word = self.choose_next_word(start_word.lower())
@@ -123,7 +120,7 @@ class MarkovChain(object):
             suggestion = None
             
             # randomize how many words prefix we should start trying at
-            for num_words_to_try in reversed(range(1, random.randint(1, PREFIX_WORD_LENGTH)+1)):
+            for num_words_to_try in reversed(range(1, random.randint(1, self.lookback)+1)):
                 if len(word_queue) >= num_words_to_try:
                     prefix = " ".join(word_queue[-num_words_to_try:])
                     suggestion = self.choose_next_word(prefix)
@@ -147,13 +144,14 @@ class MarkovChain(object):
     
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        stderr("Usage: ./nonsense.py input_file_with_lotsa_words.txt")
+        stderr("Usage: ./nonsense.py [[--lookback N]|[--startword Hello]|[--min-length 20]|[--max-length 300]|--no-cache] input_file_with_lotsa_words.txt")
         sys.exit(1)
     
     # default arguments
     start_word=None
     max_length=140
     no_cache=False
+    lookback=3
     
     # ugly but simple enough argument handling
     args = sys.argv[1:]
@@ -168,6 +166,10 @@ if __name__ == "__main__":
         max_length = args[i+1]
         del args[i+1]
         del args[i]
+    if "--lookback" in args:
+        i = args.index("--lookback")
+        lookback = args[i+1]
+        del args[i+1]
     if "--no-cache" in args:
         i = args.index("--no-cache")
         no_cache = True
@@ -177,7 +179,7 @@ if __name__ == "__main__":
     source = args[0]
     
     stderr("Generating Markov chain for input %s…" % source)
-    markov_chain = MarkovChain(input_file=args[0], no_cache=no_cache)
+    markov_chain = MarkovChain(input_file=args[0], lookback=lookback, no_cache=no_cache)
 
     stderr("Generating sentence…")
     print markov_chain.generate_sentence(start_word=start_word, max_length=max_length).encode("utf-8")
