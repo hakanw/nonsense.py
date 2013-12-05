@@ -3,8 +3,8 @@
 #
 # Reads input and generates nonsense based on it.
 #
-# Usage: 
-# ./nonsense.py [[--lookback N]|[--startword Hello]|[--min-length 20]|[--max-length 300]|--no-cache] input_file_with_lotsa_words.txt"
+# Usage:
+# ./nonsense.py [--lookback N] [--startword Hello] [--min-length 20] [--max-length 300] [--no-cache] [--only-cache] input_file_with_lotsa_words.txt
 #
 # Has quite good performance compared to last version. With the swedish bible
 # it needs about 20MB RAM and can create new sentences in ~0.1s with a prebuilt cache.
@@ -142,15 +142,16 @@ class MarkovChain(object):
     
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        stderr("Usage: ./nonsense.py [[--lookback N]|[--startword Hello]|[--min-length 20]|[--max-length 300]|--no-cache] input_file_with_lotsa_words.txt")
+        stderr("Usage: ./nonsense.py [--lookback N] [--startword Hello] [--min-length 20] [--max-length 300] [--no-cache] [--only-cache] input_file_with_lotsa_words.txt")
         sys.exit(1)
     
     # default arguments
-    start_word=None
-    max_length=140
-    no_cache=False
-    lookback=3
-    
+    start_word = None
+    max_length = 140
+    lookback = 3
+    no_cache = False
+    only_cache = False
+
     # ugly but simple enough argument handling
     args = sys.argv[1:]
     
@@ -172,12 +173,19 @@ if __name__ == "__main__":
         i = args.index("--no-cache")
         no_cache = True
         del args[i]
-    
+    if "--only-cache" in args:
+        i = args.index("--only-cache")
+        only_cache = True
+        del args[i]
+
     input_sources = args
     source = args[0]
     
     stderr("Generating Markov chain for input %s…" % source)
     markov_chain = MarkovChain(input_file=args[0], lookback=lookback, no_cache=no_cache)
 
-    stderr("Generating sentence…")
-    print markov_chain.generate_sentence(start_word=start_word, max_length=max_length).encode("utf-8")
+    if only_cache:
+        stderr("Told to only generate a cache, so exiting now.")
+    else:
+        stderr("Generating sentence...")
+        print markov_chain.generate_sentence(start_word=start_word, max_length=max_length).encode("utf-8")
