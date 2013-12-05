@@ -186,6 +186,7 @@ if __name__ == "__main__":
 
     if only_cache:
         stderr("Told to only generate a cache, so exiting now.")
-    else:
-        stderr("Generating sentence...")
-        print markov_chain.generate_sentence(start_word=start_word, max_length=max_length).encode("utf-8")
+        sys.exit(0)
+
+    stderr("Generating sentence...")
+    print markov_chain.generate_sentence(start_word=start_word, max_length=max_length).encode("utf-8")
