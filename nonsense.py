@@ -85,8 +85,9 @@ class MarkovChain(object):
                 prev_prefixes.append(word)
 
         self.conn.commit()
-        stderr("calculating probabilities…")
-    
+
+        stderr("Calculating probabilities...")
+
         # re-count from num occurences of each suffix => probability (from 0.0 - 1.0)
         for row in self.c.execute("SELECT prefix, sum(num_occurences) FROM markov_chain GROUP BY prefix").fetchall():
             self.c.execute("UPDATE markov_chain SET probability=((1.0*num_occurences)/?) WHERE prefix=?", (float(row[1]), row[0]))
@@ -180,8 +181,8 @@ if __name__ == "__main__":
 
     input_sources = args
     source = args[0]
-    
-    stderr("Generating Markov chain for input %s…" % source)
+
+    stderr("Generating Markov chain for input %s..." % source)
     markov_chain = MarkovChain(input_file=args[0], lookback=lookback, no_cache=no_cache)
 
     if only_cache:
