@@ -56,7 +56,7 @@ class MarkovChain(object):
             self.c.execute("UPDATE markov_chain SET num_occurences = num_occurences + 1 WHERE prefix=? AND suffix=?", (prefix, suffix))
 
         # estimate num words so we can give progress
-        word_count_estimate = len(input.split(" "))
+        word_count_estimate = input.count(' ') + 1
 
         i = 0
         prev_prefixes = []
