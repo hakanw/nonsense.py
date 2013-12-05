@@ -80,8 +80,7 @@ class MarkovChain(object):
                     # remove longest prefix and add current word to all of the remaining prefixes
                     prev_prefixes.pop(0)
 
-                temp = map(lambda prefix: prefix + " " + word, prev_prefixes)
-                prev_prefixes = temp
+                prev_prefixes = [prefix + " " + word for prefix in prev_prefixes]
                 prev_prefixes.append(word)
 
         self.conn.commit()
