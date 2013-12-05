@@ -14,11 +14,9 @@
 # Do what you want with it, but please give credit and contribute improvements!
 
 import sqlite3
-import os
 import sys
 import random
 import re
-from decimal import Decimal
 
 def stderr(str):
     sys.stderr.write(str + "\n")
