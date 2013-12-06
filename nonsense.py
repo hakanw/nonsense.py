@@ -60,15 +60,13 @@ class MarkovChain(object):
         # estimate num words so we can give progress
         word_count_estimate = input.count(' ') + 1
 
-        i = 0
         prev_prefixes = []
         unsaved_suffixes = []
         for counter, match in enumerate(re.finditer(self.WORD_RE, input)):
             word = match.groups()[0].lower()
             if not re.match(self.NO_REAL_WORD_RE, word):
-                i += 1
-                if i % (word_count_estimate/10) == 0:
-                    stderr("%d%%" % int(i/float(word_count_estimate) * 100.0))
+                if counter % (word_count_estimate/10) == 0:
+                    stderr("%d%%" % int(counter/float(word_count_estimate) * 100.0))
 
                 # add all prefixes => this word tuples
                 for prefix in prev_prefixes:
