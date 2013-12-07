@@ -53,7 +53,8 @@ class MarkovChain(object):
                 self.generate_markov_chain(file.read().decode("utf-8"))
 
     def init_database(self):
-       self.c.execute("CREATE TABLE IF NOT EXISTS markov_chain (prefix text, suffix text, num_occurrences integer DEFAULT 0, probability real, UNIQUE (prefix, suffix) )");
+       self.c.execute("CREATE TABLE IF NOT EXISTS markov_chain (prefix text, suffix text, num_occurrences integer DEFAULT 0, probability real)");
+       self.c.execute("CREATE INDEX prefix_index ON markov_chain (prefix)")
 
     def generate_markov_chain(self, input):
         # interface to the db
@@ -65,7 +66,7 @@ class MarkovChain(object):
         # create "temporary" table for initial data batch
         self.c.execute("DROP TABLE IF EXISTS markov_chain_temp")
         self.c.execute("CREATE TABLE markov_chain_temp (prefix text, suffix text)")
-        self.c.execute("CREATE INDEX prefix_index ON markov_chain_temp (prefix, suffix)")
+        self.c.execute("CREATE INDEX prefix_suffix_index ON markov_chain_temp (prefix, suffix)")
 
         # estimate num words so we can give progress
         word_count_estimate = input.count(' ') + 1
