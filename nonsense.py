@@ -16,12 +16,16 @@
 import sqlite3
 import sys
 import random
+import datetime
 import re
 
-WRITE_TO_DB_AFTER_NUM_WORDS = 2000
+WRITE_TO_DB_AFTER_NUM_WORDS = 5000
 
 def stderr(str):
     sys.stderr.write(str + "\n")
+
+def simple_time_diff(str, d1, d2):
+    stderr("Execution for %s took %d seconds" % (str, (d2-d1).seconds))
 
 class MarkovChain(object):
     def __init__(self, input_file=None, lookback=3, no_cache=False):
@@ -55,6 +59,8 @@ class MarkovChain(object):
         # interface to the db
         def save_suffixes(suffixes):
             self.c.executemany("INSERT INTO markov_chain_temp (prefix, suffix) VALUES (?, ?)", suffixes)
+
+        d1 = datetime.datetime.now()
 
         # create "temporary" table for initial data batch
         self.c.execute("DROP TABLE IF EXISTS markov_chain_temp")
@@ -98,6 +104,9 @@ class MarkovChain(object):
 
         self.conn.commit()
 
+        d2 = datetime.datetime.now()
+        simple_time_diff("Word indexing", d1, d2)
+
         stderr("Counting number of word occurrences...")
 
         # insert all rows from the temporary table into the final table, but
@@ -110,6 +119,9 @@ class MarkovChain(object):
 
         self.conn.commit()
 
+        d3 = datetime.datetime.now()
+        simple_time_diff("Word counting", d2, d3)
+
         stderr("Calculating probabilities...")
 
         # re-count from num occurences of each suffix => probability (from 0.0 - 1.0)
@@ -120,6 +132,9 @@ class MarkovChain(object):
 
         # vacuum database to keep disk usage to a minimum
         self.c.execute("VACUUM")
+        d4 = datetime.datetime.now()
+
+        simple_time_diff("Probabilities and vacuuming", d3, d4)
 
     def choose_next_word(self, from_prefix):
         random_choice = random.random()
