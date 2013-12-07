@@ -18,6 +18,8 @@ import sys
 import random
 import re
 
+WRITE_TO_DB_AFTER_NUM_WORDS = 2000
+
 def stderr(str):
     sys.stderr.write(str + "\n")
 
@@ -51,8 +53,8 @@ class MarkovChain(object):
 
     def generate_markov_chain(self, input):
         # interface to the db
-        def add_suffix(prefix, suffix):
-            self.c.execute("INSERT INTO markov_chain_temp (prefix, suffix) VALUES (?, ?)", (prefix, suffix))
+        def save_suffixes(suffixes):
+            self.c.executemany("INSERT INTO markov_chain_temp (prefix, suffix) VALUES (?, ?)", suffixes)
 
         # create "temporary" table for initial data batch
         self.c.execute("DROP TABLE IF EXISTS markov_chain_temp")
@@ -62,19 +64,20 @@ class MarkovChain(object):
         word_count_estimate = input.count(' ') + 1
 
         prev_prefixes = []
+        unsaved_suffixes = []
         for counter, match in enumerate(re.finditer(self.WORD_RE, input)):
             word = match.groups()[0].lower()
             if not re.match(self.NO_REAL_WORD_RE, word):
-                if counter % (word_count_estimate / 10) == 0:
-                    stderr("%d%%" % int(counter / float(word_count_estimate) * 100.0))
+                if counter % (word_count_estimate/10) == 0:
+                    stderr("%d%%" % int(counter/float(word_count_estimate) * 100.0))
 
                 # add all prefixes => this word tuples
                 for prefix in prev_prefixes:
-                    add_suffix(prefix, word)
+                    unsaved_suffixes.append((prefix, word))
 
                 # new meaning-prefix (if last word ended in dot)
                 if prev_prefixes and prev_prefixes[-1][-1] == ".":
-                    add_suffix("^", word)
+                    unsaved_suffixes.append(("^", word))
 
                 # generate new prefixes
                 if len(prev_prefixes) >= self.lookback:
@@ -83,6 +86,15 @@ class MarkovChain(object):
 
                 prev_prefixes = [prefix + " " + word for prefix in prev_prefixes]
                 prev_prefixes.append(word)
+
+            # flush suffixes to database
+            if counter % WRITE_TO_DB_AFTER_NUM_WORDS == 0:
+                save_suffixes(unsaved_suffixes)
+                unsaved_suffixes = []
+
+        # final save of suffixes to database
+        save_suffixes(unsaved_suffixes)
+        unsaved_suffixes = []
 
         self.conn.commit()
 
@@ -140,7 +152,6 @@ class MarkovChain(object):
                     suggestion = self.choose_next_word(prefix)
                     if suggestion:
                         break
-
 
             if not suggestion:
                 break
