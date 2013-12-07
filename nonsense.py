@@ -65,6 +65,7 @@ class MarkovChain(object):
         # create "temporary" table for initial data batch
         self.c.execute("DROP TABLE IF EXISTS markov_chain_temp")
         self.c.execute("CREATE TABLE markov_chain_temp (prefix text, suffix text)")
+        self.c.execute("CREATE INDEX prefix_index ON markov_chain_temp (prefix, suffix)")
 
         # estimate num words so we can give progress
         word_count_estimate = input.count(' ') + 1
