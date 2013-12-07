@@ -47,25 +47,26 @@ class MarkovChain(object):
                 self.generate_markov_chain(file.read().decode("utf-8"))
 
     def init_database(self):
-       self.c.execute("CREATE TABLE IF NOT EXISTS markov_chain (prefix text, suffix text, num_occurences integer DEFAULT 0, probability real, UNIQUE (prefix, suffix) )");
+       self.c.execute("CREATE TABLE IF NOT EXISTS markov_chain (prefix text, suffix text, num_occurrences integer DEFAULT 0, probability real, UNIQUE (prefix, suffix) )");
 
     def generate_markov_chain(self, input):
         # interface to the db
         def add_suffix(prefix, suffix):
-            self.c.execute("INSERT OR IGNORE INTO markov_chain (prefix, suffix) VALUES (?, ?)", (prefix, suffix))
-            self.c.execute("UPDATE markov_chain SET num_occurences = num_occurences + 1 WHERE prefix=? AND suffix=?", (prefix, suffix))
+            self.c.execute("INSERT INTO markov_chain_temp (prefix, suffix) VALUES (?, ?)", (prefix, suffix))
+
+        # create "temporary" table for initial data batch
+        self.c.execute("DROP TABLE IF EXISTS markov_chain_temp")
+        self.c.execute("CREATE TABLE markov_chain_temp (prefix text, suffix text)")
 
         # estimate num words so we can give progress
         word_count_estimate = input.count(' ') + 1
 
-        i = 0
         prev_prefixes = []
-        for match in re.finditer(self.WORD_RE, input):
+        for counter, match in enumerate(re.finditer(self.WORD_RE, input)):
             word = match.groups()[0].lower()
             if not re.match(self.NO_REAL_WORD_RE, word):
-                i += 1
-                if i % (word_count_estimate / 10) == 0:
-                    stderr("%d%%" % int(i / float(word_count_estimate) * 100.0))
+                if counter % (word_count_estimate / 10) == 0:
+                    stderr("%d%%" % int(counter / float(word_count_estimate) * 100.0))
 
                 # add all prefixes => this word tuples
                 for prefix in prev_prefixes:
@@ -85,13 +86,28 @@ class MarkovChain(object):
 
         self.conn.commit()
 
+        stderr("Counting number of word occurrences...")
+
+        # insert all rows from the temporary table into the final table, but
+        # collapsed into one row per prefix+suffix combo, with its count in the
+        # as num_occurrences in the final table
+        self.c.execute("INSERT INTO markov_chain (prefix, suffix, num_occurrences)\
+            SELECT prefix, suffix, count(*) FROM markov_chain_temp GROUP BY prefix, suffix")
+
+        self.c.execute("DROP TABLE markov_chain_temp")
+
+        self.conn.commit()
+
         stderr("Calculating probabilities...")
 
         # re-count from num occurences of each suffix => probability (from 0.0 - 1.0)
-        for row in self.c.execute("SELECT prefix, sum(num_occurences) FROM markov_chain GROUP BY prefix").fetchall():
-            self.c.execute("UPDATE markov_chain SET probability=((1.0*num_occurences)/?) WHERE prefix=?", (float(row[1]), row[0]))
+        for row in self.c.execute("SELECT prefix, sum(num_occurrences) FROM markov_chain GROUP BY prefix").fetchall():
+            self.c.execute("UPDATE markov_chain SET probability=((1.0*num_occurrences)/?) WHERE prefix=?", (float(row[1]), row[0]))
 
         self.conn.commit()
+
+        # vacuum database to keep disk usage to a minimum
+        self.c.execute("VACUUM")
 
     def choose_next_word(self, from_prefix):
         random_choice = random.random()
