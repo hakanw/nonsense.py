@@ -163,7 +163,7 @@ class MarkovChain(object):
             suggestion = None
 
             # randomize how many words prefix we should start trying at
-            for num_words_to_try in reversed(range(1, random.randint(1, self.lookback) + 1)):
+            for num_words_to_try in reversed(list(range(1, random.randint(1, self.lookback) + 1))):
                 if len(word_queue) >= num_words_to_try:
                     prefix = " ".join(word_queue[-num_words_to_try:])
                     suggestion = self.choose_next_word(prefix)
@@ -233,4 +233,4 @@ if __name__ == "__main__":
         sys.exit(0)
 
     stderr("Generating sentence...")
-    print markov_chain.generate_sentence(start_word=start_word, max_length=max_length).encode("utf-8")
+    print(markov_chain.generate_sentence(start_word=start_word, max_length=max_length).encode("utf-8"))
