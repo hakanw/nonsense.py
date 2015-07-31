@@ -13,6 +13,7 @@
 #
 # Do what you want with it, but please give credit and contribute improvements!
 
+import io
 import sqlite3
 import sys
 import random
@@ -49,8 +50,8 @@ class MarkovChain(object):
             # re-generate everything from scratch.
             self.init_database()
 
-            with open(input_file) as file:
-                self.generate_markov_chain(file.read().decode("utf-8"))
+            with io.open(input_file, "rt", encoding="utf-8") as file:
+                self.generate_markov_chain(file.read())
 
     def init_database(self):
        self.c.execute("CREATE TABLE IF NOT EXISTS markov_chain (prefix text, suffix text, num_occurrences integer DEFAULT 0, probability real)");
